@@ -26,14 +26,24 @@
 
     #page {
         box-sizing: border-box;
+        white-space: pre-line;
         font-size: 16px;
+        line-height: 22px;
         font-family: Helvetica, Arial, sans-serif;
         margin: 80px auto 30px auto;
         padding: 40px;
         background-color: white;
         min-height: calc(100vh - 110px);
         width: 60vw;
-        box-shadow: 0px 1px 4px 0px rgba(0,0,0,0.5);
+        box-shadow: 0px 1px 4px 0px rgba(0, 0, 0, 0.5);
+        border-radius: 4px;
+    }
+
+    .variable {
+        background-color: rgb(255, 100, 100);
+        color: white;
+        border: 1px solid rgb(255, 0, 0);
+        padding: 1px 3px 0 3px;
         border-radius: 4px;
     }
     </style>
@@ -41,14 +51,7 @@
 
 <body>
     <div id="header"></div>
-    <div id="page" contenteditable="true">
-        <div>Some sample text goes here</div>
-        <div><br></div>
-        <div>Apples = 2</div>
-        <div>Pears = 5</div>
-        <div><br></div>
-        <div>Result = Apples / Pears</div>
-    </div>
+    <div id="page" contenteditable="true"><div>Example shopping list</div><div><br></div><div>Apples = Lemons = 0.3</div><div>Pears = 0.5</div><div><br></div><div>Result = Apples</div></div>
     <script src="js/main.js"></script>
 </body>
 
