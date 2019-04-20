@@ -2,8 +2,6 @@ var variables = {};
 var varStyles = '';
 var varIndex, colorIndex = 0;
 
-var run = true;
-
 // force <br> tag for line breaks
 document.execCommand("defaultParagraphSeparator", false, "br");
 
@@ -26,31 +24,29 @@ function callback(mutationsList, observer) {
 };
 
 function parse(node) {
-    if (run) {
-        run = false;
-        if (node.innerHTML == '' || node.innerHTML == '<br>') {
-            node.innerHTML = '<div><br></div>';
-        }
-        setTimeout(function() { run = true; }, 100); // debounce rapid edits
-        for (var v in variables) {
-            if (!variables.hasOwnProperty(v)) continue;
-            variables[v].active = false;
-        }
-        varStyles = '';
-        varIndex = 0;
-        var pos = getCursorPos(page);
-        node.innerHTML = node.innerHTML.replace(/(?:<\/?span[^>]*>)*/g, '');
-        if (node.hasChildNodes()) {
-            var children = node.childNodes;
-            for (var i = 0; i < children.length; i++) {
-                if (children[i].tagName == "DIV") {
-                    evaluate(children[i], 0, children[i].textContent);
-                }
+    observer.disconnect(); // prevent observer from catching automatic edits
+    if (node.innerHTML == '' || node.innerHTML == '<br>') {
+        node.innerHTML = '<div><br></div>';
+    }
+    for (var v in variables) {
+        if (!variables.hasOwnProperty(v)) continue;
+        variables[v].active = false;
+    }
+    varStyles = '';
+    varIndex = 0;
+    var pos = getCursorPos(page);
+    node.innerHTML = node.innerHTML.replace(/(?:<\/?span[^>]*>)*/g, '');
+    if (node.hasChildNodes()) {
+        var children = node.childNodes;
+        for (var i = 0; i < children.length; i++) {
+            if (children[i].tagName == "DIV") {
+                evaluate(children[i], 0, children[i].textContent); // evaluate each line captured in a <div> tag
             }
         }
-        style.innerHTML = varStyles;
-        setCursorPos(page, pos); // TO DO - fix position after newlines
     }
+    style.innerHTML = varStyles;
+    setCursorPos(page, pos); // TO DO - fix position after newlines
+    observer.observe(page, config); // restart observer
 }
 
 function evaluate(node, index, statement) {
