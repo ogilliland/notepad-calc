@@ -2,6 +2,8 @@ var variables = {};
 var varStyles = '';
 var varIndex, colorIndex = 0;
 
+var _debug = false;
+
 // force <br> tag for line breaks
 document.execCommand("defaultParagraphSeparator", false, "br");
 
@@ -50,8 +52,10 @@ function parse(node) {
 }
 
 function evaluate(node, index, statement) {
+    var value = statement.match(/([^  \t\n=]+)(?:[  \t]+(?!=)([^\n]*)|$|\n)/); // look for a value, or a variable name not followed by a declaration
     var declare = statement.match(/[  \t]*(\w+)[  \t]*=[  \t]*([^\n]*)/); // look for an "a = b" type statement ignoring tabs and spaces
-    if (declare != null) {
+    if (declare != null && declare.index == 0) {
+        if (_debug) console.log('Declare: ' + declare[0]);
         var result = evaluate(node, index + declare.index + declare[1].length, declare[2]);
         variables[declare[1]] = {
             'active': true,
@@ -59,8 +63,24 @@ function evaluate(node, index, statement) {
         };
         highlight(node, index, declare[1]);
         return result;
-    } else if (!isNaN(statement) && statement.length > 0) {
-        return Number(statement);
+    } else if (value != null) {
+        if (_debug) console.log('Value: ' + value[0]);
+        var match = false;
+        for (var v in variables) {
+            if (!variables.hasOwnProperty(v)) continue;
+            if (value[1] == v && variables[v].active == true) match = true;
+        }
+        if (value[2]) {
+            evaluate(node, index + value.index + value[1].length, value[2]);
+        }
+        if (match) {
+            highlight(node, index, value[1]);
+            return variables[value[1]].result;
+        } else if (!isNaN(value[1])) {
+            return Number(value[1]);
+        } else {
+            return '??';
+        }
     } else {
         return '??';
     }
