@@ -28,7 +28,10 @@ function callback(mutationsList, observer) {
 function parse(node) {
     if (run) {
         run = false;
-        setTimeout(function() { run = true; }, 200); // debounce rapid edits
+        if(node.innerHTML == '' || node.innerHTML == '<br>') {
+            node.innerHTML = '<div><br></div>';
+        }
+        setTimeout(function() { run = true; }, 100); // debounce rapid edits
         for(var v in variables) {
             if (!variables.hasOwnProperty(v)) continue;
             variables[v].active = false;
@@ -37,7 +40,6 @@ function parse(node) {
         varIndex = 0;
         var pos = getCursorPos(page);
         node.innerHTML = node.innerHTML.replace(/(?:<\/?span[^>]*>)*/g, '');
-        node.innerHTML = node.innerHTML.replace(/&nbsp;/g, ' ');
         if (node.hasChildNodes()) {
             var children = node.childNodes;
             for (var i = 0; i < children.length; i++) {
@@ -46,14 +48,13 @@ function parse(node) {
                 }
             }
         }
-        node.innerHTML = node.innerHTML.replace(/  /g, ' &nbsp;');
         style.innerHTML = varStyles;
         setCursorPos(page, pos); // TO DO - fix position after newlines
     }
 }
 
 function evaluate(node, index, statement) {
-    var declare = statement.match(/[ \t]*(\w+)[ \t]*=[ \t]*([^\n]*)/); // look for an "a = b" type statement ignoring tabs and spaces
+    var declare = statement.match(/[  \t]*(\w+)[  \t]*=[  \t]*([^\n]*)/); // look for an "a = b" type statement ignoring tabs and spaces
     if (declare != null) {
         var result = evaluate(node, index + declare.index + declare[1].length, declare[2]);
         variables[declare[1]] = {
