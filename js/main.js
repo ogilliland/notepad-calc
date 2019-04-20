@@ -1,4 +1,6 @@
 var variables = {};
+var varStyles = '';
+var varIndex, colorIndex = 0;
 
 var run = true;
 
@@ -10,6 +12,10 @@ var page = document.getElementById('page');
 
 // options for the observer (which mutations to observe)
 var config = { attributes: true, childList: true, characterData: true, subtree: true };
+
+var style = document.createElement('style');
+style.type = 'text/css';
+document.getElementsByTagName('head')[0].appendChild(style);
 
 // callback function to execute when mutations are observed
 function callback(mutationsList, observer) {
@@ -27,6 +33,8 @@ function parse(node) {
             if (!variables.hasOwnProperty(v)) continue;
             variables[v].active = false;
         }
+        varStyles = '';
+        varIndex = 0;
         var pos = getCursorPos(page);
         node.innerHTML = node.innerHTML.replace(/(?:<\/?span[^>]*>)*/g, '');
         node.innerHTML = node.innerHTML.replace(/&nbsp;/g, ' ');
@@ -39,6 +47,7 @@ function parse(node) {
             }
         }
         node.innerHTML = node.innerHTML.replace(/  /g, ' &nbsp;');
+        style.innerHTML = varStyles;
         setCursorPos(page, pos); // TO DO - fix position after newlines
     }
 }
@@ -48,23 +57,32 @@ function evaluate(node, index, statement) {
     if (declare != null) {
         var result = evaluate(node, index + declare.index + declare[1].length, declare[2]);
         variables[declare[1]] = {
-            'color': '#FF0000',
             'active': true,
-            'value': result
+            'result': result
         };
         highlight(node, index, declare[1]);
         return result;
-    } else if (!isNaN(statement)) {
+    } else if (!isNaN(statement) && statement.length > 0) {
         return Number(statement);
     } else {
-        return '?';
+        return '??';
     }
 }
 
-function highlight(node, index, variable) {
+function highlight(node, index, v) {
     var src = node.innerHTML;
-    var res = src.replace(variable, '<span class="variable">' + variable + '</span>');
+    var res = src.replace(v, '<span class="variable var-' + varIndex + '">' + v + '</span>');
     node.innerHTML = res;
+    // variables[v].color = getColor(varIndex.toString(10).repeat(10));
+    variables[v].color = getColor(v);
+    varStyles += '.variable.var-' + varIndex + ' {\n';
+    varStyles += 'background-color: rgba(' + variables[v].color.r + ', ' + variables[v].color.g + ', ' + variables[v].color.b + ', 0.7);\n';
+    varStyles += 'border-color: rgb(' + variables[v].color.r + ', ' + variables[v].color.g + ', ' + variables[v].color.b + ');\n';
+    varStyles += '}\n\n';
+    varStyles += '.variable.var-' + varIndex + '::after {\n';
+    varStyles += 'content: "' + variables[v].result + '";\n'
+    varStyles += '}\n\n';
+    varIndex++;
 }
 
 function createRange(node, chars, range) {
@@ -152,6 +170,44 @@ function getCursorPos(parentNode) {
    }
 
     return charCount;
+}
+
+function getAscii(str) {
+    return str.split('')
+      .map(function (char) {
+        return char.charCodeAt(0);
+      })
+      .reduce(function (current, previous) {
+        return previous + current;
+      });
+}
+
+function HSVtoRGB(h, s, v) {
+    var r, g, b, i, f, p, q, t;
+    i = Math.floor(h * 6);
+    f = h * 6 - i;
+    p = v * (1 - s);
+    q = v * (1 - f * s);
+    t = v * (1 - (1 - f) * s);
+    
+    switch (i % 6) {
+        case 0: r = v, g = t, b = p; break;
+        case 1: r = q, g = v, b = p; break;
+        case 2: r = p, g = v, b = t; break;
+        case 3: r = p, g = q, b = v; break;
+        case 4: r = t, g = p, b = v; break;
+        case 5: r = v, g = p, b = q; break;
+    }
+    return {
+        'r': Math.round(r * 255),
+        'g': Math.round(g * 255),
+        'b': Math.round(b * 255)
+    };
+}
+
+function getColor(str) {
+    var hue = (getAscii(str)%50)/50; // pseudo-random color from string
+    return HSVtoRGB(hue, 1, 0.95);
 }
 
 // create an observer instance linked to the callback function
