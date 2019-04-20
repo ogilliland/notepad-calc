@@ -28,11 +28,11 @@ function callback(mutationsList, observer) {
 function parse(node) {
     if (run) {
         run = false;
-        if(node.innerHTML == '' || node.innerHTML == '<br>') {
+        if (node.innerHTML == '' || node.innerHTML == '<br>') {
             node.innerHTML = '<div><br></div>';
         }
         setTimeout(function() { run = true; }, 100); // debounce rapid edits
-        for(var v in variables) {
+        for (var v in variables) {
             if (!variables.hasOwnProperty(v)) continue;
             variables[v].active = false;
         }
@@ -77,11 +77,12 @@ function highlight(node, index, v) {
     // variables[v].color = getColor(varIndex.toString(10).repeat(10));
     variables[v].color = getColor(v);
     varStyles += '.variable.var-' + varIndex + ' {\n';
-    varStyles += 'background-color: rgba(' + variables[v].color.r + ', ' + variables[v].color.g + ', ' + variables[v].color.b + ', 0.7);\n';
-    varStyles += 'border-color: rgb(' + variables[v].color.r + ', ' + variables[v].color.g + ', ' + variables[v].color.b + ');\n';
+    varStyles += 'background-color: rgb(' + variables[v].color.main.r + ', ' + variables[v].color.main.g + ', ' + variables[v].color.main.b + ');\n';
+    varStyles += 'border-color: rgb(' + variables[v].color.dark.r + ', ' + variables[v].color.dark.g + ', ' + variables[v].color.dark.b + ');\n';
     varStyles += '}\n\n';
     varStyles += '.variable.var-' + varIndex + '::after {\n';
-    varStyles += 'content: "' + variables[v].result + '";\n'
+    varStyles += 'content: "' + variables[v].result + '";\n';
+    varStyles += 'background-color: rgb(' + variables[v].color.dark.r + ', ' + variables[v].color.dark.g + ', ' + variables[v].color.dark.b + ');\n';
     varStyles += '}\n\n';
     varIndex++;
 }
@@ -100,21 +101,21 @@ function createRange(node, chars, range) {
             if (node.textContent.length < chars.count) {
                 chars.count -= node.textContent.length;
             } else {
-                 range.setEnd(node, chars.count);
-                 chars.count = 0;
+                range.setEnd(node, chars.count);
+                chars.count = 0;
             }
         } else {
             for (var lp = 0; lp < node.childNodes.length; lp++) {
                 range = createRange(node.childNodes[lp], chars, range);
 
                 if (chars.count === 0) {
-                   break;
+                    break;
                 }
             }
         }
-   } 
+    }
 
-   return range;
+    return range;
 };
 
 function setCursorPos(node, chars) {
@@ -149,7 +150,7 @@ function getCursorPos(parentNode) {
 
     if (selection.focusNode) {
         if (isChildOf(selection.focusNode, parentNode)) {
-            node = selection.focusNode; 
+            node = selection.focusNode;
             charCount = selection.focusOffset;
 
             while (node) {
@@ -161,26 +162,26 @@ function getCursorPos(parentNode) {
                     node = node.previousSibling;
                     charCount += node.textContent.length;
                 } else {
-                     node = node.parentNode;
-                     if (node === null) {
-                         break
-                     }
+                    node = node.parentNode;
+                    if (node === null) {
+                        break
+                    }
                 }
-           }
-      }
-   }
+            }
+        }
+    }
 
     return charCount;
 }
 
 function getAscii(str) {
     return str.split('')
-      .map(function (char) {
-        return char.charCodeAt(0);
-      })
-      .reduce(function (current, previous) {
-        return previous + current;
-      });
+        .map(function(char) {
+            return char.charCodeAt(0);
+        })
+        .reduce(function(current, previous) {
+            return previous + current;
+        });
 }
 
 function HSVtoRGB(h, s, v) {
@@ -190,14 +191,26 @@ function HSVtoRGB(h, s, v) {
     p = v * (1 - s);
     q = v * (1 - f * s);
     t = v * (1 - (1 - f) * s);
-    
+
     switch (i % 6) {
-        case 0: r = v, g = t, b = p; break;
-        case 1: r = q, g = v, b = p; break;
-        case 2: r = p, g = v, b = t; break;
-        case 3: r = p, g = q, b = v; break;
-        case 4: r = t, g = p, b = v; break;
-        case 5: r = v, g = p, b = q; break;
+        case 0:
+            r = v, g = t, b = p;
+            break;
+        case 1:
+            r = q, g = v, b = p;
+            break;
+        case 2:
+            r = p, g = v, b = t;
+            break;
+        case 3:
+            r = p, g = q, b = v;
+            break;
+        case 4:
+            r = t, g = p, b = v;
+            break;
+        case 5:
+            r = v, g = p, b = q;
+            break;
     }
     return {
         'r': Math.round(r * 255),
@@ -207,8 +220,11 @@ function HSVtoRGB(h, s, v) {
 }
 
 function getColor(str) {
-    var hue = (getAscii(str)%50)/50; // pseudo-random color from string
-    return HSVtoRGB(hue, 1, 0.95);
+    var hue = (getAscii(str) % 50) / 50; // pseudo-random color from string
+    return {
+        'main': HSVtoRGB(hue, 1, 0.95),
+        'dark': HSVtoRGB(hue, 1, 0.85)
+    };
 }
 
 // create an observer instance linked to the callback function

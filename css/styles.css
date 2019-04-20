@@ -33,16 +33,21 @@ html {
 }
 
 .variable {
-    background-color: rgba(255, 0, 0, 0.7);
+    background-color: rgb(242, 0, 0);
     color: white;
-    border: 1px solid rgb(255, 0, 0);
-    padding: 1px 3px 0 3px;
+    border: 1px solid rgb(217, 0, 0);
+    padding: 1px 0 0 3px;
     border-radius: 4px;
 }
 
 .variable::after {
+    display: inline-block;
     font-size: 12px;
-    padding-left: 2px;
+    padding: 1px 3px 0 4px;
+    margin-left: 3px;
+    border-radius: 4px;
+    height: 20px;
+    background-color: rgb(217, 0, 0);
     color: rgba(255, 255, 255, 0.75);
     content: "??";
 }
