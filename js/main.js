@@ -18,14 +18,15 @@ style.type = 'text/css';
 document.getElementsByTagName('head')[0].appendChild(style);
 
 // callback function to execute when mutations are observed
-function callback(mutationsList, observer) {
+var callback = function(mutationsList, observer) {
     for (var mutation of mutationsList) {
         // console.log(mutation.type);
-        parse(page);
+        process(page);
     }
 };
 
-function parse(node) {
+var process = function(node) {
+    if (_debug) console.log('BEGINNING PROCESS');
     observer.disconnect(); // prevent observer from catching automatic edits
     if (node.innerHTML == '' || node.innerHTML == '<br>') {
         node.innerHTML = '<div><br></div>';
@@ -42,7 +43,9 @@ function parse(node) {
         var children = node.childNodes;
         for (var i = 0; i < children.length; i++) {
             if (children[i].tagName == "DIV") {
-                evaluate(children[i], 0, children[i].textContent); // evaluate each line captured in a <div> tag
+                // TO DO - split this text instead of evaluating
+                parse(children[i], children[i].textContent);
+                // evaluate(children[i], 0, children[i].textContent); // evaluate each line captured in a <div> tag
             }
         }
     }
@@ -51,45 +54,91 @@ function parse(node) {
     observer.observe(page, config); // restart observer
 }
 
-function evaluate(node, index, statement) {
-    var value = statement.match(/([^  \t\n=]+)(?:[  \t]+(?!=)([^\n]*)|$|\n)/); // look for a value, or a variable name not followed by a declaration
-    var declare = statement.match(/[  \t]*(\w+)[  \t]*=[  \t]*([^\n]*)/); // look for an "a = b" type statement ignoring tabs and spaces
-    if (declare != null && declare.index == 0) {
-        if (_debug) console.log('Declare: ' + declare[0]);
-        var result = evaluate(node, index + declare.index + declare[1].length, declare[2]);
-        variables[declare[1]] = {
-            'active': true,
-            'result': result
-        };
-        highlight(node, index, declare[1]);
-        return result;
-    } else if (value != null) {
-        if (_debug) console.log('Value: ' + value[0]);
-        var match = false;
-        for (var v in variables) {
-            if (!variables.hasOwnProperty(v)) continue;
-            if (value[1] == v && variables[v].active == true) match = true;
+var parse = function(node, statement) {
+    statement = statement.replace(/[  \t]+/g, ' '); // replace multiple spaces with single space
+    statement = statement.replace(/^[ \t]+|[ \t]+$/g, ''); // remove spaces from start or end of line
+    statement = statement.replace(/([\w.])([\(\)*\/+\-,=])/g, '$1 $2'); // ensure there is a space before an operator
+    statement = statement.replace(/([\(\)*\/+\-,=])([\w.])/g, '$1 $2'); // ensure there is a space after an operator
+    var sections = statement.split(' ');
+    if (sections.length == 1 && sections[0].length == 0) return '??'; // resolve empty values
+    if (sections[1] == '=') {
+        if (_debug) console.log('Declaration: ' + statement);
+        var remainder = sections.slice(2, sections.length).join(' ');
+        if (remainder.length > 0) {
+            if (_debug) console.log('    Remainder: ' + remainder);
+            var result = parse(node, remainder);
+            highlight(node, sections[0], result);
+            return result;
         }
-        if (value[2]) {
-            evaluate(node, index + value.index + value[1].length, value[2]);
+    } else {
+        if (_debug) console.log('Value: ' + statement);
+        var formula = [];
+        var end = -1;
+        for (var i = 0; i < sections.length; i++) {
+            var match = -1;
+            for (var v in variables) {
+                if (!variables.hasOwnProperty(v)) continue;
+                if (sections[i] == v && variables[v].active == true) {
+                    match = v;
+                    break;
+                } // TO DO - match function names
+            }
+            if (match != -1) {
+                if (_debug) console.log('    Variable: ' + sections[i] + ' => ' + variables[match].result);
+                formula.push(variables[match].result);
+                highlight(node, match);
+                end = i;
+            } else if (!isNaN(sections[i])) {
+                if (_debug) console.log('    Number: ' + sections[i] + ' => ' + Number(sections[i]));
+                formula.push(Number(sections[i]));
+                end = i;
+            } else if (sections[i].search(/[\(\)*\/+\-]/) > -1) { // TO DO - allow power and other functions as operators
+                if (_debug) console.log('    Operator: ' + sections[i]);
+                formula.push(sections[i]);
+                end = i;
+            } else {
+                break;
+            }
         }
-        if (match) {
-            highlight(node, index, value[1]);
-            return variables[value[1]].result;
-        } else if (!isNaN(value[1])) {
-            return Number(value[1]);
+        if (end == -1) { // no match, skip 1 section
+            var remainder = sections.slice(1, sections.length).join(' ');
+            if (_debug) console.log('    Remainder: ' + remainder);
+            parse(node, remainder);
+            return '??';
+        }
+        if (end + 1 < sections.length) { // continue processing remainder
+            var remainder = sections.slice(end + 1, sections.length).join(' ');
+            if (_debug) console.log('    Remainder: ' + remainder);
+            parse(node, remainder);
+        }
+        // evaluate formula
+        var result;
+            try {
+                result = eval(formula.join(' ')); // TO DO - build math engine to replace eval
+            } catch (e) {
+                if (e instanceof SyntaxError) {
+                    result = '??';
+                }
+            }
+        if (!isNaN(result)) {
+            return result;
         } else {
             return '??';
         }
-    } else {
-        return '??';
     }
 }
 
-function highlight(node, index, v) {
-    var src = node.innerHTML;
-    var res = src.replace(v, '<span class="variable var-' + varIndex + '">' + v + '</span>');
-    node.innerHTML = res;
+var highlight = function(node, v, value = null) {
+    // highlight variable
+    var regex = new RegExp(v + '(?!<\/span>)', '');
+    node.innerHTML = node.innerHTML.replace(regex, '<span class="variable var-' + varIndex + '">' + v + '</span>');
+    if (value != null) {
+        // store in object
+        variables[v] = {
+            'active': true,
+            'result': value
+        };
+    }
     // variables[v].color = getColor(varIndex.toString(10).repeat(10));
     variables[v].color = getColor(v);
     varStyles += '.variable.var-' + varIndex + ' {\n';
@@ -103,7 +152,7 @@ function highlight(node, index, v) {
     varIndex++;
 }
 
-function createRange(node, chars, range) {
+var createRange = function(node, chars, range) {
     if (!range) {
         range = document.createRange();
         range.selectNode(node);
@@ -134,7 +183,7 @@ function createRange(node, chars, range) {
     return range;
 };
 
-function setCursorPos(node, chars) {
+var setCursorPos = function(node, chars) {
     if (chars >= 0) {
         var selection = window.getSelection();
 
@@ -148,7 +197,7 @@ function setCursorPos(node, chars) {
     }
 };
 
-function isChildOf(node, parentNode) {
+var isChildOf = function(node, parentNode) {
     while (node !== null) {
         if (node === parentNode) {
             return true;
@@ -159,7 +208,7 @@ function isChildOf(node, parentNode) {
     return false;
 };
 
-function getCursorPos(parentNode) {
+var getCursorPos = function(parentNode) {
     var selection = window.getSelection(),
         charCount = -1,
         node;
@@ -190,7 +239,7 @@ function getCursorPos(parentNode) {
     return charCount;
 }
 
-function getAscii(str) {
+var getAscii = function(str) {
     return str.split('')
         .map(function(char) {
             return char.charCodeAt(0);
@@ -200,7 +249,7 @@ function getAscii(str) {
         });
 }
 
-function HSVtoRGB(h, s, v) {
+var HSVtoRGB = function(h, s, v) {
     var r, g, b, i, f, p, q, t;
     i = Math.floor(h * 6);
     f = h * 6 - i;
@@ -235,7 +284,7 @@ function HSVtoRGB(h, s, v) {
     };
 }
 
-function getColor(str) {
+var getColor = function(str) {
     var hue = (getAscii(str) % 50) / 50; // pseudo-random color from string
     return {
         'main': HSVtoRGB(hue, 1, 0.95),
@@ -250,4 +299,4 @@ var observer = new MutationObserver(callback);
 observer.observe(page, config);
 
 // iterate over page and calculate result
-parse(page);
+process(page);
