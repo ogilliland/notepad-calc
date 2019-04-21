@@ -113,13 +113,13 @@ var parse = function(node, statement) {
         }
         // evaluate formula
         var result;
-            try {
-                result = eval(formula.join(' ')); // TO DO - build math engine to replace eval
-            } catch (e) {
-                if (e instanceof SyntaxError) {
-                    result = '??';
-                }
+        try {
+            result = eval(formula.join(' ')); // TO DO - build math engine to replace eval
+        } catch (e) {
+            if (e instanceof SyntaxError) {
+                result = '??';
             }
+        }
         if (!isNaN(result)) {
             return result;
         } else {
@@ -146,10 +146,23 @@ var highlight = function(node, v, value = null) {
     varStyles += 'border-color: rgb(' + variables[v].color.dark.r + ', ' + variables[v].color.dark.g + ', ' + variables[v].color.dark.b + ');\n';
     varStyles += '}\n\n';
     varStyles += '.variable.var-' + varIndex + '::after {\n';
-    varStyles += 'content: "' + variables[v].result + '";\n';
+    varStyles += 'content: "' + formatNum(variables[v].result) + '";\n';
     varStyles += 'background-color: rgb(' + variables[v].color.dark.r + ', ' + variables[v].color.dark.g + ', ' + variables[v].color.dark.b + ');\n';
     varStyles += '}\n\n';
     varIndex++;
+}
+
+var formatNum = function(number) {
+    if (isNaN(number)) return '??';
+    var result = Number(number.toPrecision(3)); // TO DO - user selectable sig figs
+    if (result == Infinity) {
+        result = '∞';
+    } else if (Math.abs(number) > Math.pow(10, 7)) {
+        result = result.toExponential();
+    } else if (Math.abs(number) < Math.pow(10, -6) && number != 0) {
+        result = result.toExponential();
+    }
+    return result;
 }
 
 var createRange = function(node, chars, range) {
